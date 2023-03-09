@@ -28,6 +28,9 @@
         DECIMAL = 0100001R/W
         TEMP = 1001000
 */
+enum segConvert {
+    one = 0b00001100
+}
 
 
 
