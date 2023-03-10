@@ -22,10 +22,11 @@
 #define I2C0CONCLR (*(volatile unsigned int *)  0x4001C018)
 #define I2C0DAT (*(volatile unsigned int *)  0x4001C008)    // use assignment not bitwise
 #define I2C0STAT (*(volatile unsigned int *)  0x4001C004)
-#define PCLKSEL0 (*(volatile unsigned int *) 0x400FC1A8)
 #define T0TC (*(volatile unsigned int *) 0x40004008)
 #define T0TCR (*(volatile unsigned int *) 0x40004004)
 
+
+// addresses for i2c devices
 enum I2CAdr {
     DigitAdrR = 0b01000001,
     DigitAdrW = 0b01000000,
@@ -48,11 +49,13 @@ void stop(void){
     I2C0CONCLR = (1<<3);
     while((I2C0CONSET>>4) & 1 == 1);
 }
+// i2c write sequence
 void writeSeq(int data){
     I2C0DAT = data;
     I2C0CONCLR = (1<<3);
     while((I2C0CONSET >> 3) & 1 == 0);
 }
+// full i2c write to IO expanders
 void writeIO(int op, int adr, int data1, int data2){
     start();
     writeSeq(op);
@@ -61,12 +64,14 @@ void writeIO(int op, int adr, int data1, int data2){
     writeSeq(data2);
     stop();
 }
+// i2c read sequence
 int readSeq(void){
     I2C0CONCLR = (1<<3);
     while((I2C0CONSET >> 3) & 1 == 0)
     int ret = I2C0DAT;
     return ret;
 }
+// full i2c read to get temp
 int readTemp(void){
     start();
     writeSeq(TempAdrW);
@@ -81,17 +86,19 @@ int readTemp(void){
     ret = ret>>5;
     return ret;
 }
+// full i2c read to get switch value
 int readSw(void){
     start();
     writeSeq(DecimalAdrW);
     writeSeq(0x13);
     start();
     writeSeq(DecimalAdrR)
+    I2C0CONCLR = (1<<2);
     int ret = readSeq();
     stop();
     return (ret & 1);
 }
-
+// wait function and checks if switched is pressed
 int wait_us(int us){
 
     T0TC = 0;
@@ -106,7 +113,7 @@ int wait_us(int us){
 int wait(float sec){
     return wait_us(sec*1000000);
 }
-
+// seven segment decoder
 int segConvert(int val){
     switch (val){
         case 0:
@@ -153,8 +160,8 @@ int main(void) {
     int isCelsius = 1;
 
     while(1){
-        float temp = readTemp() * 0.125;
-        temp = (isCelsius == 1) ? temp : (temp * 1.8 + 32);
+        float temp = readTemp() * 0.125;    // temp in C
+        temp = (isCelsius == 1) ? temp : (temp * 1.8 + 32); // convert to feren if needed
         int tens = segConvert(temp/10);
         int ones = segConvert(temp%10);
         int tenths = segConvert((temp * 10) % 10);
